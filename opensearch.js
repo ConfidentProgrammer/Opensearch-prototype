@@ -53,7 +53,7 @@ const search = (searchTerm, documentsList) => {
     const docList =  preComputedIndex.get(searchTerm)
     const res = []
     docList?.forEach((index) => {
-        res.push(documents[index])
+        res.push(documentsList[index])
     })
 
     return res
