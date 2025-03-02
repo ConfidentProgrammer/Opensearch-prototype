@@ -9,3 +9,6 @@ Handles large text files by splitting them into manageable chunks.
 ⚠️ Note: This is a prototype and may not be as efficient as OpenSearch or Elasticsearch itself. However, I have optimized it as much as possible within the scope of this learning project.
 
 This project serves as a learning tool rather than a production-ready search engine. 🚀
+
+##Usage
+node opensearch.js searchterm
