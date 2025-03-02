@@ -13,6 +13,7 @@ This project serves as a learning tool rather than a production-ready search eng
 ##Usage
 node opensearch.js searchterm
 
+
 User@Mac Prototypes % node opensearch.js bottle
 Time: 331.705ms
 [
@@ -25,6 +26,7 @@ Time: 331.705ms
   105873, 105879, 105910, 105935, 106109,
   106128, 106459
 ]
+
 
 
 User@Mac Prototypes % node opensearch.js charger
