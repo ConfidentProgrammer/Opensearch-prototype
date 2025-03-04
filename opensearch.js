@@ -9,17 +9,19 @@
 //     'Programming is the magic and deeP Patel loves to do it',
 //     `Software is magic as well`
 // ]
-const fs = require('fs')
-const readBookAndGetArray = (filePath, callback) => {
+const fs = require('fs');
+
+const readBookAndGetArray = (filePath) => {
+    return new Promise((resolve, reject) => {
     //Read the file asynchronously
     fs.readFile(filePath, 'utf8', (err, data) => {
         if (err) {
-            callback(err, null)
-            return;
+            reject(err)
+        }else {
+            resolve(data.split(/[.!?]/))
         }
-        //divide data to array at every thousand characters
-        callback(null, data.split(/[.!?]/))
     });
+    })
 }
 
 const separateUniqueWords = (string) => {
@@ -28,12 +30,13 @@ const separateUniqueWords = (string) => {
     return new Set(res)
 }
 
+// This function is only ran once, just to create invertedIndex and store in to the file
 const preComputeInvertedIndex = (documents) => {
     let preIndex = new Map()
     for(let i = 0 ; i<documents.length ; ++i){
         sentence = documents[i]
         sentenceArr = separateUniqueWords(sentence)
-        sentenceArr.forEach((word, index) => {
+        sentenceArr.forEach((word) => {
             if (preIndex.has(word)) {
                 let preIndexArr = preIndex.get(word)
                 preIndexArr.push(i)
@@ -44,29 +47,65 @@ const preComputeInvertedIndex = (documents) => {
             }
         })
     }
+    writePreIndexToFile(preIndex)
     return preIndex
 }
 
-const search = (searchTerm, documentsList) => {
-    searchTerm = searchTerm.toLowerCase()
-    const preComputedIndex = preComputeInvertedIndex(documentsList)
-    const docList =  preComputedIndex.get(searchTerm)
-    const res = []
-    docList?.forEach((index) => {
-        res.push(documentsList[index])
-    })
-
-    return res
+const writePreIndexToFile = (PreInvertedIndex) => {
+    //convert to json
+    const json = JSON.stringify(Object.fromEntries(PreInvertedIndex));
+    fs.writeFile('preIndex.json', json, 'utf8', (err, res) => {
+        if(err){
+            console.log('something went wrong!!')
+            return
+        }else {
+            console.log('preIndex written to file!')
+        }
+    });
 }
 
-//read file
-readBookAndGetArray('book.txt', (err, res)=> {
-    if(err){
-        console.log('This is the error', err)
-    }else {
-        console.time('Time')
-        const searchResult = search(process.argv[2], res)
-        console.timeEnd('Time')
-        console.log(searchResult)
-    }
-})
+const search = (searchTerm, invertedIndex) => {
+    return new Promise((resolve) => {
+        searchTerm = searchTerm.toLowerCase()
+        const results = invertedIndex.get(searchTerm) || []
+        resolve(results.length ? results : 'Not found!')
+    })
+}
+
+const readInvertedIndexFromFile = () => {
+    return new Promise((resolve, reject) => {
+        fs.readFile('preIndex.json', 'utf8', (err, data) => {
+            if (err) {
+                reject(err)
+            }else {
+                const parsedJson = JSON.parse(data)
+                const PreInvertedIndexMap = new Map(Object.entries(parsedJson))
+                resolve(PreInvertedIndexMap)
+            }
+        });
+    })
+}
+
+const isMultiWords = (searchTerms) => {
+    const arr = searchTerms.split(' ')
+    return arr.length>1
+}
+
+const multiWordsSearchOR = async (searchTerms, preInvertedIndexMap) => {
+    const searchWords = searchTerms.split(' & ')
+    const searchResults = await Promise.all(searchWords.map(word => search(word, preInvertedIndexMap)))
+    return searchResults
+}
+
+//main execution
+(async ()=> {
+    const searchTerm =  `apple & book & cat & dog & elephant & flower & guitar & house & icecream & jungle & kite & lamp & mountain & notebook & ocean & piano & queen & river & sun & tree` // multi word search OR query
+    //const searchTerm = process.argv[2]
+    console.time('exec time')
+    const preInvertedIndexMap = await readInvertedIndexFromFile() 
+
+    const searchResult = isMultiWords(searchTerm) ? await multiWordsSearchOR(searchTerm, preInvertedIndexMap) : await search(searchTerm, preInvertedIndexMap)
+    console.timeEnd('exec time')
+    console.log(searchResult)
+
+})()
