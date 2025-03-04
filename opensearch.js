@@ -4,7 +4,7 @@
 3. initialize the hashmap of each unique words
 */
 // const documents = [
-//     `This is the deep patel, anchal PAtel is my wife, she is very beautiful`,
+//     `This is the deep patel,
 //     `bottle is table and table is the bottle`,
 //     'Programming is the magic and deeP Patel loves to do it',
 //     `Software is magic as well`
