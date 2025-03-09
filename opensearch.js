@@ -65,6 +65,17 @@ const writePreIndexToFile = (PreInvertedIndex) => {
     });
 }
 
+const fuzzySearch = async (searchTerm, invertedIndex, documentsList) => {
+    let words = []
+    invertedIndex.forEach((value, key) => {
+        if(key.includes(searchTerm)){
+            words.push(key)
+        } 
+    })
+    const results = await Promise.all(words.map(word => search(word, invertedIndex, documentsList)))
+    return results
+}
+
 const search = (searchTerm, invertedIndex, documentsList) => {
     return new Promise((resolve) => {
         searchTerm = searchTerm.toLowerCase()
@@ -145,6 +156,9 @@ const mainExecution = async (operation, searchTerm) => {
             searchResult = await search(searchTerm, preInvertedIndexMap, documentList)
         }
         break;
+        case 'Partial Matching & Fuzzy Search': {
+            searchResult = await fuzzySearch(searchTerm, preInvertedIndexMap, documentList)
+        }
         }
     console.timeEnd('exec time')
     console.log(searchResult)
