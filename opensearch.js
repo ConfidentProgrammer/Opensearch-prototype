@@ -3,13 +3,14 @@
 2. tokenize its words, separate the words and count the words
 3. initialize the hashmap of each unique words
 */
-// const documents = [
-//     `This is the deep patel,
+// const documents = [`This is the deep patel`,
 //     `bottle is table and table is the bottle`,
-//     'Programming is the magic and deeP Patel loves to do it',
+//     `Programming is the magic and deeP Patel loves to do it`,
 //     `Software is magic as well`
 // ]
-const fs = require('fs');
+
+import inquirer from 'inquirer';
+import fs from 'fs'
 
 const readBookAndGetArray = (filePath) => {
     return new Promise((resolve, reject) => {
@@ -64,10 +65,10 @@ const writePreIndexToFile = (PreInvertedIndex) => {
     });
 }
 
-const search = (searchTerm, invertedIndex) => {
+const search = (searchTerm, invertedIndex, documentsList) => {
     return new Promise((resolve) => {
         searchTerm = searchTerm.toLowerCase()
-        const results = invertedIndex.get(searchTerm) || []
+        const results = invertedIndex.get(searchTerm)?.map(index => documentsList[index]) || []
         resolve(results.length ? results : 'Not found!')
     })
 }
@@ -87,25 +88,85 @@ const readInvertedIndexFromFile = () => {
 }
 
 const isMultiWords = (searchTerms) => {
-    const arr = searchTerms.split(' ')
-    return arr.length>1
+    return searchTerms.split(' ').length > 1
 }
 
-const multiWordsSearchOR = async (searchTerms, preInvertedIndexMap) => {
-    const searchWords = searchTerms.split(' & ')
-    const searchResults = await Promise.all(searchWords.map(word => search(word, preInvertedIndexMap)))
+const isMultiWordsOR = (searchTerms) => {
+    return searchTerms.split(' OR ').length > 1
+}
+
+const isMultiWordsAND = (searchTerms) => {
+    return searchTerms.split(' AND ').length > 1
+}
+
+const multiWordsSearchOR = async (searchTerms, preInvertedIndexMap, documentList) => {
+    const searchWords = searchTerms.split(' OR ')
+    const searchResults = await Promise.all(searchWords.map(word => search(word, preInvertedIndexMap, documentList)))
     return searchResults
 }
 
+const multiWordsSearchAND = async (searchTerms, preInvertedIndexMap, documentList) => {
+    const searchWords = searchTerms.split(' AND ')
+
+    const searchResults = await Promise.all(searchWords.map(word => search(word, preInvertedIndexMap, documentList)))
+
+    const result = searchResults.reduce((accumulator, currentValue) => accumulator.filter((acc) => currentValue.includes(acc))) 
+
+    return result
+}
+
+const operationResult = async (searchTerm, validationF1, validationF2, operationF, errorMessage, preInvertedIndexMap, documentList) => {
+    let searchResult = ''
+    if(validationF1(searchTerm) && validationF2(searchTerm)){
+        searchResult = await operationF(searchTerm, preInvertedIndexMap, documentList)
+    }else {
+        throw new Error(errorMessage)
+    }
+    return searchResult
+}
+
 //main execution
-(async ()=> {
-    const searchTerm =  `apple & book & cat & dog & elephant & flower & guitar & house & icecream & jungle & kite & lamp & mountain & notebook & ocean & piano & queen & river & sun & tree` // multi word search OR query
-    //const searchTerm = process.argv[2]
+const mainExecution = async (operation, searchTerm) => {
+
     console.time('exec time')
     const preInvertedIndexMap = await readInvertedIndexFromFile() 
-
-    const searchResult = isMultiWords(searchTerm) ? await multiWordsSearchOR(searchTerm, preInvertedIndexMap) : await search(searchTerm, preInvertedIndexMap)
+    const documentList = await readBookAndGetArray('book.txt')
+    let searchResult = ''
+    switch(operation){
+        case 'OR Query': {
+            searchResult = await operationResult(searchTerm, isMultiWords, isMultiWordsOR, multiWordsSearchOR, 'OR operation Failed!, Please make sure Input is correct, E.g: Book OR Animal OR Tree', preInvertedIndexMap, documentList)
+        }
+        break;
+        case 'AND Query': {
+            searchResult = await operationResult(searchTerm, isMultiWords, isMultiWordsAND, multiWordsSearchAND, 'AND operation Failed!, Please make sure Input is correct, E.g: Book AND Animal AND Tree', preInvertedIndexMap, documentList)
+        }
+        break;
+        case 'Word Search': {
+            searchResult = await search(searchTerm, preInvertedIndexMap, documentList)
+        }
+        break;
+        }
     console.timeEnd('exec time')
     console.log(searchResult)
-
-})()
+}
+inquirer
+  .prompt([
+   {
+    message: "Please choose the operation?",
+    name: "operation",
+    type: "list",
+    choices: ['OR Query', 'AND Query', 'Word Search', 'Partial Matching & Fuzzy Search']
+   },  
+   {
+    message: "Enter word(s) to search. Separated by AND or OR or single word",
+    name: 'query'
+   }
+  ])
+  .then(async (answers) => {
+    const searchTerms = answers['query']
+    const operation = answers['operation']
+    await mainExecution(operation, searchTerms)
+  })
+  .catch((error) => {
+    console.log(error)
+  });
